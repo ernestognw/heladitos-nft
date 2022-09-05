@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity 0.8.10;
 
 library IPFS {
     bytes internal constant ALPHABET =
@@ -27,12 +27,14 @@ library IPFS {
                 carry /= 58;
             }
         }
+
         for (uint8 i = 0; i < 23; ++i) {
             (digits[i], digits[45 - i]) = (
                 ALPHABET[uint8(digits[45 - i])],
                 ALPHABET[uint8(digits[i])]
             );
         }
+
         return string(digits);
     }
 }
