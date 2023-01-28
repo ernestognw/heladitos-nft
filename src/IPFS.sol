@@ -2,8 +2,7 @@
 pragma solidity 0.8.10;
 
 library IPFS {
-    bytes internal constant ALPHABET =
-        "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    bytes internal constant ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
     function toHash(uint256 input) internal pure returns (string memory) {
         bytes memory digits = new bytes(46);
@@ -29,10 +28,7 @@ library IPFS {
         }
 
         for (uint8 i = 0; i < 23; ++i) {
-            (digits[i], digits[45 - i]) = (
-                ALPHABET[uint8(digits[45 - i])],
-                ALPHABET[uint8(digits[i])]
-            );
+            (digits[i], digits[45 - i]) = (ALPHABET[uint8(digits[45 - i])], ALPHABET[uint8(digits[i])]);
         }
 
         return string(digits);
