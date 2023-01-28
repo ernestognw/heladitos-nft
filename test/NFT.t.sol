@@ -7,27 +7,46 @@ import "../src/NFT.sol";
 
 contract NFTTest is Test {
     NFT nft;
-    uint256 _mintFee;
 
     function setUp() public {
-        nft = new NFT("Test", "TST", _mintFee, address(this), address(this));
+        nft = new NFT("Test", "TST", 3e16, address(this), address(this));
     }
 
-    function mintWithFee(address to, uint256 tokenId, address minter) private {
+    function mintWithFee(address to, uint256 tokenId, address minter, uint256 value) private {
         hoax(minter);
-        nft.mint{value: _mintFee}(to, tokenId);
+        nft.mint{value: value}(to, tokenId);
     }
 
     function testMinting(address to, uint256 tokenId, address minter) public {
         console.log(unicode"🔵 It should allow minting with fee");
-        
+
         vm.assume(tokenId < 10000);
         vm.assume(minter != address(0));
         vm.assume(to.code.length == 0 && to != address(0));
-        mintWithFee(to, tokenId, minter);
+        mintWithFee(to, tokenId, minter, nft.mintFee());
 
         console.log(unicode"🔵 It should return valid IPFSHash");
         nft.tokenURI(1);
+    }
+
+    function testInsufficientFeeError(address to, uint256 tokenId, address minter) public {
+        console.log(unicode"🔵 It should catch fee errors");
+
+        uint256 fee = nft.mintFee() - 1;
+        vm.expectRevert(abi.encodeWithSelector(IMintFee.InsufficientFee.selector, minter, fee));
+        mintWithFee(to, tokenId, minter, fee);
+    }
+
+    function testExceededCapError(address to, uint256 tokenId, address minter) public {
+        console.log(unicode"🔵 It should catch cap errors");
+
+        // Set cap overriding its storage slot
+        vm.store(address(nft), bytes32(uint256(9)), bytes32(uint256(10000)));
+        vm.assume(minter != address(0));
+        vm.assume(to.code.length == 0 && to != address(0));
+        uint256 fee = nft.mintFee();
+        vm.expectRevert(abi.encodeWithSelector(IMintCap.ExceededCap.selector, minter));
+        mintWithFee(to, tokenId, minter, fee);
     }
 
     function testSetDefaultRoyalty(
@@ -39,7 +58,7 @@ contract NFTTest is Test {
     ) public {
         console.log(unicode"🔵 It should allow setting default royalty");
 
-        nft = new NFT("Test", "TST", _mintFee, royaltyAdmin, address(0));
+        nft = new NFT("Test", "TST", nft.mintFee(), royaltyAdmin, address(0));
         vm.assume(receiver.code.length == 0 && receiver != address(0));
         vm.assume(feeNumerator <= 1000);
         vm.prank(royaltyAdmin);
@@ -50,10 +69,16 @@ contract NFTTest is Test {
         assertEq(_feeNumerator, Math.mulDiv(salePrice, feeNumerator, nft.feeDenominator()));
     }
 
-    function testSetTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator, address royaltyAdmin, uint96 salePrice) public {
+    function testSetTokenRoyalty(
+        uint256 tokenId,
+        address receiver,
+        uint96 feeNumerator,
+        address royaltyAdmin,
+        uint96 salePrice
+    ) public {
         console.log(unicode"🔵 It should allow setting a token royalty");
 
-        nft = new NFT("Test", "TST", _mintFee, royaltyAdmin, address(0));
+        nft = new NFT("Test", "TST", nft.mintFee(), royaltyAdmin, address(0));
         vm.assume(receiver.code.length == 0 && receiver != address(0));
         vm.assume(feeNumerator <= 1000);
         vm.prank(royaltyAdmin);
@@ -75,7 +100,7 @@ contract NFTTest is Test {
         console.log(unicode"🔵 It should return a known IPFSHash");
 
         uint256 tokenId = 1727260417373953872291778126086077336273179123693563675004320478128047194372;
-        mintWithFee(address(1), tokenId, address(this));
+        mintWithFee(address(1), tokenId, address(this), nft.mintFee());
         string memory tokenURI = nft.tokenURI(1);
         assertEq(tokenURI, "ipfs://QmNbZJK56QAGYH4G8mF4F9Q1t5thuL8ToXom2YFTUsn8eX");
     }
